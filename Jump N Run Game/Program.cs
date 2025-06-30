@@ -12,6 +12,8 @@ namespace Jump_N_Run_Game
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
             Application.Run(new Form1());
+            
+
         }
     }
 }

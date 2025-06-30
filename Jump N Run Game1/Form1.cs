@@ -1,9 +1,9 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace SurvivalJumper
+namespace Jump_N_Run_Game1
 {
     public partial class Form1 : Form
     {
@@ -32,7 +32,8 @@ namespace SurvivalJumper
 
         public Form1()
         {
-           
+            
+
             this.DoubleBuffered = true;
             this.Width = 800;
             this.Height = 600;
@@ -83,7 +84,7 @@ namespace SurvivalJumper
                 platforms.Add(new Rectangle(200, 290, 120, 20));
             }
 
-            // Lavafläche
+            // LavaflÃ¤che
             lavaZone = new Rectangle(0, 520, this.ClientSize.Width, this.ClientSize.Height - 520);
 
             // Bewegliche Plattformen
@@ -134,7 +135,7 @@ namespace SurvivalJumper
                     }
                 }
 
-                // Lava Berührung
+                // Lava BerÃ¼hrung
                 if (player.IntersectsWith(lavaZone))
                 {
                     LoseLife();
@@ -221,7 +222,7 @@ namespace SurvivalJumper
             if (currentState == GameState.StartScreen)
             {
                 string title = "Survival Jumper";
-                string instructions = "Drücke 1 oder 2 um ein Level zu starten";
+                string instructions = "DrÃ¼cke 1 oder 2 um ein Level zu starten";
 
                 var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.DrawString(title, new Font("Arial", 32, FontStyle.Bold), Brushes.DarkRed, ClientRectangle, sf);
@@ -254,7 +255,7 @@ namespace SurvivalJumper
 
             if (currentState == GameState.GameOver)
             {
-                string msg = "GAME OVER\nDrücke ENTER zum Neustart";
+                string msg = "GAME OVER\nDrÃ¼cke ENTER zum Neustart";
                 var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.FillRectangle(new SolidBrush(Color.FromArgb(180, Color.Black)), ClientRectangle);
                 g.DrawString(msg, new Font("Arial", 28, FontStyle.Bold), Brushes.White, ClientRectangle, sf);

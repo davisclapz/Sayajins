@@ -1,17 +1,17 @@
-﻿namespace Jump_N_Run_Game
+﻿namespace Jump_N_Run_Game1
 {
     partial class Form1
     {
         /// <summary>
-        ///  Required designer variable.
+        /// Erforderliche Designervariable.
         /// </summary>
         private System.ComponentModel.IContainer components = null;
 
         /// <summary>
-        ///  Clean up any resources being used.
+        /// Verwendete Ressourcen bereinigen.
         /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
-        /protected override void Dispose(bool disposing)
+        /// <param name="disposing">True, wenn verwaltete Ressourcen gelöscht werden sollen; andernfalls False.</param>
+        protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
             {
@@ -20,11 +20,11 @@
             base.Dispose(disposing);
         }
 
-        #region Windows Form Designer generated code
+        #region Vom Windows Form-Designer generierter Code
 
         /// <summary>
-        ///  Required method for Designer support - do not modify
-        ///  the contents of this method with the code editor.
+        /// Erforderliche Methode für die Designerunterstützung.
+        /// Der Inhalt der Methode darf nicht mit dem Code-Editor geändert werden.
         /// </summary>
         private void InitializeComponent()
         {
@@ -37,3 +37,4 @@
         #endregion
     }
 }
+
