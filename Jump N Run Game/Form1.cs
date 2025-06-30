@@ -1,32 +1,37 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+
 namespace Jump_N_Run_Game
 {
     public partial class Form1 : Form
     {
         System.Windows.Forms.Timer gameTimer = new System.Windows.Forms.Timer();
-
-        Rectangle player = new Rectangle(100, 300, 40, 40);
+        Rectangle player = new Rectangle(100, 440, 40, 40);
         int playerSpeedX = 0;
         int playerSpeedY = 0;
         int gravity = 2;
-        int jumpStrength = -20;
+        int jumpStrength = -25;
         bool isJumping = false;
         bool onGround = false;
 
         List<Rectangle> platforms = new List<Rectangle>();
-        List<Rectangle> coins = new List<Rectangle>();
-        List<Enemy> enemies = new List<Enemy>();
+        Rectangle lava; // große zusammenhängende Lavafläche
+        Rectangle goal = new Rectangle(1400, 360, 40, 40);
 
-        int score = 0;
         int lives = 3;
         bool gameOver = false;
+        bool gameWon = false;
 
         public Form1()
         {
             InitializeComponent();
             this.DoubleBuffered = true;
-            this.Width = 800;
+            this.Width = 900;
             this.Height = 600;
-            this.Text = "Jump and Run";
+            this.Text = "?? Lava Level";
 
             SetupLevel();
 
@@ -40,48 +45,45 @@ namespace Jump_N_Run_Game
 
         private void SetupLevel()
         {
-            // Spieler Startposition
             player.X = 100;
-            player.Y = 300;
+            player.Y = 440;
             playerSpeedX = 0;
             playerSpeedY = 0;
             isJumping = false;
             onGround = false;
-            score = 0;
-            lives = 3;
             gameOver = false;
+            gameWon = false;
 
-            // Plattformen
             platforms.Clear();
-            platforms.Add(new Rectangle(0, 550, 800, 50));
-            platforms.Add(new Rectangle(200, 450, 150, 20));
-            platforms.Add(new Rectangle(400, 350, 150, 20));
-            platforms.Add(new Rectangle(600, 250, 150, 20));
 
-            // Münzen
-            coins.Clear();
-            coins.Add(new Rectangle(220, 410, 20, 20));
-            coins.Add(new Rectangle(430, 310, 20, 20));
-            coins.Add(new Rectangle(620, 210, 20, 20));
+            // Startplattform (kurz)
+            platforms.Add(new Rectangle(100, 480, 120, 20));
 
-            // Gegner
-            enemies.Clear();
-            enemies.Add(new Enemy(new Rectangle(300, 510, 40, 40), 3, 200, 400));
-            enemies.Add(new Enemy(new Rectangle(500, 310, 40, 40), 2, 400, 550));
+            // Level-Design mit Plattformen
+            platforms.Add(new Rectangle(300, 420, 100, 20));
+            platforms.Add(new Rectangle(450, 360, 80, 20));
+            platforms.Add(new Rectangle(580, 300, 100, 20));
+            platforms.Add(new Rectangle(720, 360, 80, 20));
+            platforms.Add(new Rectangle(850, 420, 100, 20));
+            platforms.Add(new Rectangle(1000, 360, 80, 20));
+            platforms.Add(new Rectangle(1120, 300, 120, 20));
+            platforms.Add(new Rectangle(1300, 360, 100, 20)); // Zielplattform
+
+            // Große zusammenhängende Lavafläche unten (fast ganz unten)
+            lava = new Rectangle(0, 520, 1600, 80);
+
+            goal = new Rectangle(1400, 320, 40, 40); // Ziel am Ende
         }
 
         private void GameLoop(object sender, EventArgs e)
         {
-            if (gameOver)
+            if (gameOver || gameWon)
             {
                 Invalidate();
                 return;
             }
 
-            // Schwerkraft
             playerSpeedY += gravity;
-
-            // Spieler Bewegung
             player.X += playerSpeedX;
             player.Y += playerSpeedY;
 
@@ -93,52 +95,36 @@ namespace Jump_N_Run_Game
                 {
                     player.Y = plat.Y - player.Height;
                     playerSpeedY = 0;
-                    onGround = true;
                     isJumping = false;
+                    onGround = true;
                 }
             }
 
-            // Münzen sammeln
-            for (int i = coins.Count - 1; i >= 0; i--)
+            // Lava-Kollision (große Fläche)
+            if (player.IntersectsWith(lava))
             {
-                if (player.IntersectsWith(coins[i]))
+                lives--;
+                if (lives <= 0)
                 {
-                    coins.RemoveAt(i);
-                    score += 10;
+                    gameOver = true;
+                }
+                else
+                {
+                    ResetPlayer();
                 }
             }
 
-            // Gegner bewegen und Kollisionscheck
-            foreach (var enemy in enemies)
+            // Ziel erreicht
+            if (player.IntersectsWith(goal))
             {
-                enemy.Move();
-
-                if (player.IntersectsWith(enemy.Bounds))
-                {
-                    lives--;
-                    if (lives <= 0)
-                    {
-                        gameOver = true;
-                    }
-                    else
-                    {
-                        // Spieler zurücksetzen
-                        player.X = 100;
-                        player.Y = 300;
-                        playerSpeedX = 0;
-                        playerSpeedY = 0;
-                        isJumping = false;
-                        onGround = false;
-                    }
-                    break;
-                }
+                gameWon = true;
+                gameTimer.Stop();
             }
 
-            // Spielfeld Grenzen (links/rechts)
+            // Bildschirmgrenzen
             if (player.X < 0) player.X = 0;
-            if (player.X + player.Width > this.ClientSize.Width) player.X = this.ClientSize.Width - player.Width;
+            if (player.X + player.Width > 1600) player.X = 1600 - player.Width;
 
-            // Unten raus = leben verlieren + reset
             if (player.Y > this.ClientSize.Height)
             {
                 lives--;
@@ -148,25 +134,31 @@ namespace Jump_N_Run_Game
                 }
                 else
                 {
-                    player.X = 100;
-                    player.Y = 300;
-                    playerSpeedX = 0;
-                    playerSpeedY = 0;
-                    isJumping = false;
-                    onGround = false;
+                    ResetPlayer();
                 }
             }
 
             Invalidate();
         }
 
+        private void ResetPlayer()
+        {
+            player.X = 100;
+            player.Y = 440;
+            playerSpeedX = 0;
+            playerSpeedY = 0;
+            isJumping = false;
+            onGround = false;
+        }
+
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (gameOver)
+            if (gameOver || gameWon)
             {
                 if (e.KeyCode == Keys.Enter)
                 {
                     SetupLevel();
+                    gameTimer.Start();
                 }
                 return;
             }
@@ -182,70 +174,55 @@ namespace Jump_N_Run_Game
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right) playerSpeedX = 0;
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
+                playerSpeedX = 0;
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
-            g.Clear(Color.SkyBlue);
+
+            // Hintergrund mit Farbverlauf (warm, feurig)
+            using (LinearGradientBrush brush = new LinearGradientBrush(ClientRectangle,
+                Color.OrangeRed, Color.DarkOrange, LinearGradientMode.Vertical))
+            {
+                g.FillRectangle(brush, ClientRectangle);
+            }
 
             // Plattformen
             foreach (var plat in platforms)
                 g.FillRectangle(Brushes.SaddleBrown, plat);
 
-            // Münzen
-            foreach (var coin in coins)
-                g.FillEllipse(Brushes.Gold, coin);
+            // Große Lavafläche (glühendes Orange)
+            using (SolidBrush lavaBrush = new SolidBrush(Color.FromArgb(220, 255, 69, 0))) // leicht transparentes Feuer-Orange
+            {
+                g.FillRectangle(lavaBrush, lava);
+            }
 
-            // Gegner
-            foreach (var enemy in enemies)
-                g.FillRectangle(Brushes.Black, enemy.Bounds);
+            // Ziel (grün)
+            g.FillRectangle(Brushes.LimeGreen, goal);
 
-            // Spieler
-            g.FillRectangle(Brushes.Red, player);
+            // Spieler (rot)
+            g.FillRectangle(Brushes.Blue, player);
 
-            // UI: Punkte und Leben
-            g.DrawString("Punkte: " + score, new Font("Arial", 16), Brushes.Black, 10, 10);
-            g.DrawString("Leben: " + lives, new Font("Arial", 16), Brushes.Black, 10, 40);
+            // UI: Leben
+            g.DrawString("Leben: " + lives, new Font("Arial", 16, FontStyle.Bold), Brushes.White, 10, 10);
 
-            // Game Over Screen
             if (gameOver)
             {
-                string msg = "GAME OVER\nDrücke ENTER zum Neustart";
-                var sf = new StringFormat()
-                {
-                    Alignment = StringAlignment.Center,
-                    LineAlignment = StringAlignment.Center
-                };
+                string msg = "?? GAME OVER ??\nDrücke ENTER zum Neustart";
+                var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.FillRectangle(new SolidBrush(Color.FromArgb(180, Color.Black)), ClientRectangle);
                 g.DrawString(msg, new Font("Arial", 32, FontStyle.Bold), Brushes.White, ClientRectangle, sf);
             }
-        }
-    }
 
-    // Hilfsklasse für Gegner
-    public class Enemy
-    {
-        public Rectangle Bounds;
-        private int speed;
-        private int minX;
-        private int maxX;
-        private int direction = 1;
-
-        public Enemy(Rectangle rect, int speed, int minX, int maxX)
-        {
-            this.Bounds = rect;
-            this.speed = speed;
-            this.minX = minX;
-            this.maxX = maxX;
-        }
-
-        public void Move()
-        {
-            Bounds.X += speed * direction;
-            if (Bounds.X < minX || Bounds.X + Bounds.Width > maxX)
-                direction *= -1;
+            if (gameWon)
+            {
+                string msg = "?? LEVEL GESCHAFFT! ??\nDrücke ENTER zum Neustart";
+                var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.FillRectangle(new SolidBrush(Color.FromArgb(180, Color.Green)), ClientRectangle);
+                g.DrawString(msg, new Font("Arial", 32, FontStyle.Bold), Brushes.White, ClientRectangle, sf);
+            }
         }
     }
 }
