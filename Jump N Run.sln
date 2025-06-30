@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jump N Run", "Jump N Run\Jump N Run.csproj", "{62C4CF15-162F-4D11-96A8-17319501AADF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{62C4CF15-162F-4D11-96A8-17319501AADF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62C4CF15-162F-4D11-96A8-17319501AADF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62C4CF15-162F-4D11-96A8-17319501AADF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62C4CF15-162F-4D11-96A8-17319501AADF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
