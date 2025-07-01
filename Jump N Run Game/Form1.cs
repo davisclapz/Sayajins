@@ -1,93 +1,107 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace Jump_N_Run_Game
+namespace LavaJumper
 {
-    public partial class Form1 : Form
+    public partial class GameForm : Form
     {
         System.Windows.Forms.Timer gameTimer = new System.Windows.Forms.Timer();
-        Rectangle player = new Rectangle(100, 440, 40, 40);
+
+
+        Rectangle player = new Rectangle(100, 400, 40, 40);
         int playerSpeedX = 0;
         int playerSpeedY = 0;
         int gravity = 2;
-        int jumpStrength = -25;
+        int jumpStrength = -24;
         bool isJumping = false;
         bool onGround = false;
 
         List<Rectangle> platforms = new List<Rectangle>();
-        Rectangle lava; // groﬂe zusammenh‰ngende Lavafl‰che
-        Rectangle goal = new Rectangle(1400, 360, 40, 40);
+        List<MovingPlatform> movingPlatforms = new List<MovingPlatform>();
+        List<Rectangle> lavaBalls = new List<Rectangle>();
+        Rectangle lava = new Rectangle(0, 550, 1600, 50);
 
+        int score = 0;
         int lives = 3;
         bool gameOver = false;
-        bool gameWon = false;
+        bool showMenu = true;
 
-        public Form1()
+        int lavaBallTimer = 0;
+        Random rand = new Random();
+
+        public GameForm()
         {
-            InitializeComponent();
+            
             this.DoubleBuffered = true;
-            this.Width = 900;
+            this.Width = 1000;
             this.Height = 600;
-            this.Text = "?? Lava Level";
-
-            SetupLevel();
+            this.Text = "Lava Jumper";
 
             gameTimer.Interval = 20;
             gameTimer.Tick += GameLoop;
-            gameTimer.Start();
 
-            this.KeyDown += Form1_KeyDown;
-            this.KeyUp += Form1_KeyUp;
+            this.KeyDown += Form_KeyDown;
+            this.KeyUp += Form_KeyUp;
         }
 
-        private void SetupLevel()
+        private void StartGame(int level)
+        {
+            showMenu = false;
+            SetupLevel(level);
+            gameTimer.Start();
+        }
+
+        private void SetupLevel(int level)
         {
             player.X = 100;
-            player.Y = 440;
+            player.Y = 400;
             playerSpeedX = 0;
             playerSpeedY = 0;
             isJumping = false;
             onGround = false;
+            score = 0;
+            lives = 3;
             gameOver = false;
-            gameWon = false;
 
             platforms.Clear();
+            movingPlatforms.Clear();
+            lavaBalls.Clear();
 
-            // Startplattform (kurz)
-            platforms.Add(new Rectangle(100, 480, 120, 20));
+            platforms.Add(new Rectangle(100, 500, 100, 20));
 
-            // Level-Design mit Plattformen
-            platforms.Add(new Rectangle(300, 420, 100, 20));
-            platforms.Add(new Rectangle(450, 360, 80, 20));
-            platforms.Add(new Rectangle(580, 300, 100, 20));
-            platforms.Add(new Rectangle(720, 360, 80, 20));
-            platforms.Add(new Rectangle(850, 420, 100, 20));
-            platforms.Add(new Rectangle(1000, 360, 80, 20));
-            platforms.Add(new Rectangle(1120, 300, 120, 20));
-            platforms.Add(new Rectangle(1300, 360, 100, 20)); // Zielplattform
-
-            // Groﬂe zusammenh‰ngende Lavafl‰che unten (fast ganz unten)
-            lava = new Rectangle(0, 520, 1600, 80);
-
-            goal = new Rectangle(1400, 320, 40, 40); // Ziel am Ende
+            if (level >= 1)
+            {
+                platforms.Add(new Rectangle(250, 450, 100, 20));
+                platforms.Add(new Rectangle(400, 400, 80, 20));
+            }
+            if (level >= 2)
+            {
+                platforms.Add(new Rectangle(550, 350, 100, 20));
+                movingPlatforms.Add(new MovingPlatform(700, 300, 80, 20, true));
+            }
+            if (level == 3)
+            {
+                platforms.Add(new Rectangle(900, 250, 100, 20));
+                movingPlatforms.Add(new MovingPlatform(1100, 200, 80, 20, false));
+            }
         }
 
         private void GameLoop(object sender, EventArgs e)
         {
-            if (gameOver || gameWon)
+            if (gameOver)
             {
                 Invalidate();
                 return;
             }
 
+            // Bewegung
             playerSpeedY += gravity;
             player.X += playerSpeedX;
             player.Y += playerSpeedY;
 
-            // Kollision mit Plattformen
+            // Plattform-Kollision
             onGround = false;
             foreach (var plat in platforms)
             {
@@ -95,47 +109,62 @@ namespace Jump_N_Run_Game
                 {
                     player.Y = plat.Y - player.Height;
                     playerSpeedY = 0;
-                    isJumping = false;
                     onGround = true;
+                    isJumping = false;
                 }
             }
 
-            // Lava-Kollision (groﬂe Fl‰che)
+            foreach (var mp in movingPlatforms)
+            {
+                mp.Update();
+                if (player.IntersectsWith(mp.Bounds) && playerSpeedY >= 0)
+                {
+                    player.Y = mp.Bounds.Y - player.Height;
+                    playerSpeedY = 0;
+                    onGround = true;
+                    isJumping = false;
+                }
+            }
+
+            // Lava-Kollision
             if (player.IntersectsWith(lava))
             {
                 lives--;
-                if (lives <= 0)
-                {
-                    gameOver = true;
-                }
-                else
-                {
-                    ResetPlayer();
-                }
+                if (lives <= 0) gameOver = true;
+                else ResetPlayer();
             }
 
-            // Ziel erreicht
-            if (player.IntersectsWith(goal))
+            // Lava-Kugeln
+            lavaBallTimer++;
+            if (lavaBallTimer > 60)
             {
-                gameWon = true;
-                gameTimer.Stop();
+                lavaBallTimer = 0;
+                int x = rand.Next(0, this.ClientSize.Width - 20);
+                lavaBalls.Add(new Rectangle(x, lava.Y, 20, 20));
             }
 
-            // Bildschirmgrenzen
-            if (player.X < 0) player.X = 0;
-            if (player.X + player.Width > 1600) player.X = 1600 - player.Width;
+            for (int i = lavaBalls.Count - 1; i >= 0; i--)
+            {
+                lavaBalls[i] = new Rectangle(lavaBalls[i].X, lavaBalls[i].Y - 8, 20, 20);
+                if (lavaBalls[i].Y < 0)
+                    lavaBalls.RemoveAt(i);
+                else if (player.IntersectsWith(lavaBalls[i]))
+                {
+                    lives--;
+                    lavaBalls.RemoveAt(i);
+                    if (lives <= 0) gameOver = true;
+                    else ResetPlayer();
+                }
+            }
 
+            // Spielfeldgrenzen
+            if (player.X < 0) player.X = 0;
+            if (player.X + player.Width > this.ClientSize.Width) player.X = this.ClientSize.Width - player.Width;
             if (player.Y > this.ClientSize.Height)
             {
                 lives--;
-                if (lives <= 0)
-                {
-                    gameOver = true;
-                }
-                else
-                {
-                    ResetPlayer();
-                }
+                if (lives <= 0) gameOver = true;
+                else ResetPlayer();
             }
 
             Invalidate();
@@ -144,22 +173,26 @@ namespace Jump_N_Run_Game
         private void ResetPlayer()
         {
             player.X = 100;
-            player.Y = 440;
-            playerSpeedX = 0;
+            player.Y = 400;
             playerSpeedY = 0;
-            isJumping = false;
-            onGround = false;
+            playerSpeedX = 0;
         }
 
-        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        private void Form_KeyDown(object sender, KeyEventArgs e)
         {
-            if (gameOver || gameWon)
+            if (showMenu)
             {
-                if (e.KeyCode == Keys.Enter)
-                {
-                    SetupLevel();
-                    gameTimer.Start();
-                }
+                if (e.KeyCode == Keys.D1) StartGame(1);
+                if (e.KeyCode == Keys.D2) StartGame(2);
+                if (e.KeyCode == Keys.D3) StartGame(3);
+                return;
+            }
+
+            if (gameOver && e.KeyCode == Keys.Enter)
+            {
+                showMenu = true;
+                gameOver = false;
+                Invalidate();
                 return;
             }
 
@@ -172,56 +205,87 @@ namespace Jump_N_Run_Game
             }
         }
 
-        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        private void Form_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
-                playerSpeedX = 0;
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right) playerSpeedX = 0;
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
 
-            // Hintergrund mit Farbverlauf (warm, feurig)
-            using (LinearGradientBrush brush = new LinearGradientBrush(ClientRectangle,
-                Color.OrangeRed, Color.DarkOrange, LinearGradientMode.Vertical))
+            if (showMenu)
             {
-                g.FillRectangle(brush, ClientRectangle);
+                g.Clear(Color.OrangeRed);
+                string msg = "LAVA JUMPER\nDr¸cke 1-3 zum Starten eines Levels";
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString(msg, new Font("Arial", 28, FontStyle.Bold), Brushes.White, ClientRectangle, sf);
+                return;
             }
+
+            g.Clear(Color.LightSalmon);
 
             // Plattformen
             foreach (var plat in platforms)
                 g.FillRectangle(Brushes.SaddleBrown, plat);
 
-            // Groﬂe Lavafl‰che (gl¸hendes Orange)
-            using (SolidBrush lavaBrush = new SolidBrush(Color.FromArgb(220, 255, 69, 0))) // leicht transparentes Feuer-Orange
-            {
-                g.FillRectangle(lavaBrush, lava);
-            }
+            // Bewegliche Plattformen
+            foreach (var mp in movingPlatforms)
+                g.FillRectangle(Brushes.Peru, mp.Bounds);
 
-            // Ziel (gr¸n)
-            g.FillRectangle(Brushes.LimeGreen, goal);
+            // Lava
+            g.FillRectangle(Brushes.Red, lava);
 
-            // Spieler (rot)
+            // Lava-Kugeln
+            foreach (var ball in lavaBalls)
+                g.FillEllipse(Brushes.OrangeRed, ball);
+
+            // Spieler
             g.FillRectangle(Brushes.Blue, player);
 
-            // UI: Leben
-            g.DrawString("Leben: " + lives, new Font("Arial", 16, FontStyle.Bold), Brushes.White, 10, 10);
+            g.DrawString($"Leben: {lives}", new Font("Arial", 16), Brushes.Black, 10, 10);
 
             if (gameOver)
             {
-                string msg = "?? GAME OVER ??\nDr¸cke ENTER zum Neustart";
-                var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                string msg = "GAME OVER\nDr¸cke ENTER";
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.FillRectangle(new SolidBrush(Color.FromArgb(180, Color.Black)), ClientRectangle);
                 g.DrawString(msg, new Font("Arial", 32, FontStyle.Bold), Brushes.White, ClientRectangle, sf);
             }
+        }
+    }
 
-            if (gameWon)
+    public class MovingPlatform
+    {
+        public Rectangle Bounds;
+        private int range;
+        private int speed;
+        private int direction = 1;
+        private int start;
+        private bool vertical;
+
+        public MovingPlatform(int x, int y, int w, int h, bool vertical)
+        {
+            this.Bounds = new Rectangle(x, y, w, h);
+            this.vertical = vertical;
+            this.range = 100;
+            this.speed = 2;
+            this.start = vertical ? y : x;
+        }
+
+        public void Update()
+        {
+            if (vertical)
             {
-                string msg = "?? LEVEL GESCHAFFT! ??\nDr¸cke ENTER zum Neustart";
-                var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.FillRectangle(new SolidBrush(Color.FromArgb(180, Color.Green)), ClientRectangle);
-                g.DrawString(msg, new Font("Arial", 32, FontStyle.Bold), Brushes.White, ClientRectangle, sf);
+                Bounds.Y += speed * direction;
+                if (Bounds.Y > start + range || Bounds.Y < start - range)
+                    direction *= -1;
+            }
+            else
+            {
+                Bounds.X += speed * direction;
+                if (Bounds.X > start + range || Bounds.X < start - range)
+                    direction *= -1;
             }
         }
     }
