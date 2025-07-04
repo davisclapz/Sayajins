@@ -184,49 +184,50 @@ namespace Himmels_Spring_Spiel
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Apply camera offset
-            g.TranslateTransform(-kameraPosition, 0);
-
-            // Draw sky background
+            // 1. Himmelshintergrund VOR Kamera-Offset zeichnen
             using (var himmelPinsel = new LinearGradientBrush(
                 new Point(0, 0),
                 new Point(0, this.ClientSize.Height),
                 Color.LightSkyBlue,
                 Color.DeepSkyBlue))
             {
-                g.FillRectangle(himmelPinsel, 0, 0, levelBreite, this.ClientSize.Height);
+                g.FillRectangle(himmelPinsel, 0, 0, this.ClientSize.Width, this.ClientSize.Height);
             }
 
-            // Draw background clouds
+            // 2. Kamera-Verschiebung anwenden
+            g.TranslateTransform(-kameraPosition, 0);
+
+            // 3. Wolken im Hintergrund
             foreach (var wolke in wolkenHintergrund)
             {
                 g.FillEllipse(Brushes.WhiteSmoke, wolke);
             }
 
-            // Draw platforms
+            // 4. Plattformen
             foreach (var plattform in plattformen)
             {
                 g.FillEllipse(Brushes.WhiteSmoke, plattform);
             }
 
-            // Draw goal (sun)
+            // 5. Ziel (Sonne)
             g.FillEllipse(Brushes.Gold, ziel);
             g.DrawString("Ziel", this.Font, Brushes.Black,
                 ziel.X + ziel.Width / 2 - 15,
                 ziel.Y + ziel.Height / 2 - 8);
 
-            // Draw player
+            // 6. Spieler
             g.FillEllipse(Brushes.Red, spieler);
 
-            // Reset transform
+            // 7. Kamera-Transform zurücksetzen
             g.ResetTransform();
 
-            // Draw UI
+            // 8. UI-Text (bleibt fix am Bildschirmrand)
             using (var schrift = new Font("Arial", 14, FontStyle.Bold))
             {
                 g.DrawString("Springe zur Sonne! (Pfeiltasten)", schrift, Brushes.White, 20, 20);
             }
         }
+
 
         private void HauptFenster_KeyDown(object sender, KeyEventArgs e)
         {
@@ -278,12 +279,6 @@ namespace Himmels_Spring_Spiel
             base.Dispose(disposing);
         }
 
-        [STAThread]
-        public static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new HauptFenster());
-        }
+       
     }
 }
