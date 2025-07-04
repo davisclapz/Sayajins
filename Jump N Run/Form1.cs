@@ -1,329 +1,289 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace Jump_N_Run
+namespace Himmels_Spring_Spiel
 {
-    public partial class Form1 : Form
+    public class HauptFenster : Form
     {
-        private enum GameState { StartScreen, Playing, GameOver }
+        // Game components and variables
+        private readonly Timer spielUhr;
+        private Rectangle spieler;
+        private int geschwindigkeitY;
+        private bool springtGerade;
+        private bool gehtLinks;
+        private bool gehtRechts;
 
-        private GameState currentState = GameState.StartScreen;
+        // Level elements
+        private readonly List<Rectangle> plattformen;
+        private readonly List<Rectangle> wolkenHintergrund;
+        private readonly Rectangle ziel;
+        private readonly int levelBreite = 2000;
+        private int kameraPosition;
 
-        private System.Windows.Forms.Timer gameTimer;
-        private Rectangle player = new Rectangle(100, 300, 40, 40);
-        private int playerSpeedX = 0;
-        private int playerSpeedY = 0;
-        private int gravity = 2;
-        private int jumpStrength = -20;
-        private bool isJumping = false;
-        private bool onGround = false;
-        private int score = 0;
-        private int lives = 3;
-        private int selectedLevel = 1;
+        // Game constants
+        private const int Schwerkraft = 1;
+        private const int SprungKraft = -18;
+        private const int LaufGeschwindigkeit = 7;
+        private const int BodenHoehe = 550;
 
-        private List<Rectangle> platforms = new List<Rectangle>();
-        private List<MovingPlatform> movingPlatforms = new List<MovingPlatform>();
-        private List<LavaBall> lavaBalls = new List<LavaBall>();
-        private Rectangle lavaZone;
+        // Form components
+        private IContainer components = null;
 
-        private Random rand = new Random();
-
-        public Form1()
+        public HauptFenster()
         {
+            // Initialize components container
+            components = new Container();
 
+            // Initialize readonly fields
+            spielUhr = new Timer(components);
+            plattformen = new List<Rectangle>();
+            wolkenHintergrund = new List<Rectangle>();
+            ziel = new Rectangle(levelBreite - 100, 50, 60, 60);
 
+            // Initialize other fields
+            spieler = new Rectangle(100, 300, 30, 50);
+            geschwindigkeitY = 0;
+            springtGerade = false;
+            gehtLinks = false;
+            gehtRechts = false;
+            kameraPosition = 0;
+
+            // Initialize form properties
+            InitializeComponent();
+            InitializeGame();
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+
+            // Basic form settings
+            this.AutoScaleDimensions = new SizeF(6F, 13F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.ClientSize = new Size(800, 600);
+            this.Name = "HauptFenster";
+            this.Text = "Himmels-Spring-Spiel";
+
+            // Custom form settings
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.WindowState = FormWindowState.Maximized;
             this.DoubleBuffered = true;
-            this.Width = 800;
-            this.Height = 600;
-            this.Text = "Survival Jumper";
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
 
-            gameTimer = new System.Windows.Forms.Timer();
-            gameTimer.Interval = 20;
-            gameTimer.Tick += GameLoop;
-            gameTimer.Start();
-
-            this.KeyDown += Form1_KeyDown;
-            this.KeyUp += Form1_KeyUp;
-
-            SetupStartScreen();
+            this.ResumeLayout(false);
         }
 
-        private void SetupStartScreen()
+        private void InitializeGame()
         {
-            currentState = GameState.StartScreen;
+            // Set up game timer
+            spielUhr.Interval = 20; // 50 FPS
+            spielUhr.Tick += SpielSchleife;
+
+            // Set up keyboard events
+            this.KeyDown += HauptFenster_KeyDown;
+            this.KeyUp += HauptFenster_KeyUp;
+            this.KeyPreview = true;
+
+            // Build level
+            BaueLevel();
+
+            // Start game
+            spielUhr.Start();
         }
 
-        private void StartLevel(int level)
+        private void BaueLevel()
         {
-            currentState = GameState.Playing;
-            selectedLevel = level;
-            lives = 3;
-            score = 0;
-            player = new Rectangle(100, 300, 40, 40);
-            playerSpeedX = 0;
-            playerSpeedY = 0;
-            isJumping = false;
-            onGround = false;
+            plattformen.Clear();
+            wolkenHintergrund.Clear();
 
-            // Plattformen
-            platforms.Clear();
-            platforms.Add(new Rectangle(0, 500, 200, 20));
-            platforms.Add(new Rectangle(600, 500, 200, 20));
-
-            if (level == 1)
+            // Create background clouds
+            Random zufall = new Random();
+            for (int i = 0; i < 20; i++)
             {
-                platforms.Add(new Rectangle(300, 420, 120, 20));
-                platforms.Add(new Rectangle(100, 340, 120, 20));
-            }
-            else if (level == 2)
-            {
-                platforms.Add(new Rectangle(300, 420, 120, 20));
-                platforms.Add(new Rectangle(500, 360, 120, 20));
-                platforms.Add(new Rectangle(200, 290, 120, 20));
+                wolkenHintergrund.Add(new Rectangle(
+                    zufall.Next(0, levelBreite),
+                    zufall.Next(50, 300),
+                    100, 40));
             }
 
-            // Lavafläche
-            lavaZone = new Rectangle(0, 520, this.ClientSize.Width, this.ClientSize.Height - 520);
-
-            // Bewegliche Plattformen
-            movingPlatforms.Clear();
-            movingPlatforms.Add(new MovingPlatform(new Rectangle(400, 250, 100, 20), 2, true));
-            movingPlatforms.Add(new MovingPlatform(new Rectangle(200, 180, 100, 20), 2, false));
-
-            // Lava-Kugeln
-            lavaBalls.Clear();
-            for (int i = 0; i < 5; i++)
-            {
-                int x = rand.Next(0, this.ClientSize.Width);
-                lavaBalls.Add(new LavaBall(new Point(x, lavaZone.Y + lavaZone.Height - 10)));
-            }
+            // Create platforms (jumpable clouds)
+            plattformen.Add(new Rectangle(100, BodenHoehe, 120, 20)); // Start
+            plattformen.Add(new Rectangle(300, 450, 120, 20));
+            plattformen.Add(new Rectangle(500, 400, 120, 20));
+            plattformen.Add(new Rectangle(700, 350, 120, 20));
+            plattformen.Add(new Rectangle(900, 300, 120, 20));
+            plattformen.Add(new Rectangle(1100, 250, 120, 20));
+            plattformen.Add(new Rectangle(1300, 200, 120, 20));
+            plattformen.Add(new Rectangle(1500, 150, 120, 20));
+            plattformen.Add(new Rectangle(1700, 100, 120, 20));
         }
 
-        private void GameLoop(object sender, EventArgs e)
+        private void SpielSchleife(object sender, EventArgs e)
         {
-            if (currentState == GameState.Playing)
+            // Handle movement
+            if (gehtLinks && spieler.X > 0) spieler.X -= LaufGeschwindigkeit;
+            if (gehtRechts && spieler.X < levelBreite - spieler.Width) spieler.X += LaufGeschwindigkeit;
+
+            // Update camera
+            if (spieler.X > this.ClientSize.Width / 2 &&
+                spieler.X < levelBreite - this.ClientSize.Width / 2)
             {
-                playerSpeedY += gravity;
-                player.X += playerSpeedX;
-                player.Y += playerSpeedY;
-                onGround = false;
+                kameraPosition = spieler.X - this.ClientSize.Width / 2;
+            }
 
-                // Plattform-Kollision
-                foreach (var plat in platforms)
+            // Apply gravity
+            geschwindigkeitY += Schwerkraft;
+            spieler.Y += geschwindigkeitY;
+
+            // Check platform collisions
+            foreach (var plattform in plattformen)
+            {
+                if (spieler.Bottom >= plattform.Top &&
+                    spieler.Bottom <= plattform.Top + 15 &&
+                    spieler.Right > plattform.Left + 10 &&
+                    spieler.Left < plattform.Right - 10 &&
+                    geschwindigkeitY >= 0)
                 {
-                    if (player.IntersectsWith(plat) && playerSpeedY >= 0)
-                    {
-                        player.Y = plat.Y - player.Height;
-                        playerSpeedY = 0;
-                        onGround = true;
-                        isJumping = false;
-                    }
-                }
-
-                // Bewegliche Plattformen
-                foreach (var mplat in movingPlatforms)
-                {
-                    mplat.Update();
-                    if (player.IntersectsWith(mplat.Bounds) && playerSpeedY >= 0)
-                    {
-                        player.Y = mplat.Bounds.Y - player.Height;
-                        playerSpeedY = 0;
-                        onGround = true;
-                        isJumping = false;
-                    }
-                }
-
-                // Lava Berührung
-                if (player.IntersectsWith(lavaZone))
-                {
-                    LoseLife();
-                }
-
-                // Lava-Kugel Bewegung & Kollision
-                foreach (var ball in lavaBalls)
-                {
-                    ball.Update();
-                    if (player.IntersectsWith(ball.Bounds))
-                    {
-                        LoseLife();
-                        break;
-                    }
-                }
-
-                // Spielfeldgrenzen
-                if (player.X < 0) player.X = 0;
-                if (player.X + player.Width > this.ClientSize.Width)
-                    player.X = this.ClientSize.Width - player.Width;
-
-                if (player.Y > this.ClientSize.Height)
-                {
-                    LoseLife();
+                    spieler.Y = plattform.Top - spieler.Height;
+                    geschwindigkeitY = 0;
+                    springtGerade = false;
+                    break;
                 }
             }
 
-            Invalidate();
-        }
-
-        private void LoseLife()
-        {
-            lives--;
-            if (lives <= 0)
+            // Check if player fell
+            if (spieler.Y > this.ClientSize.Height)
             {
-                currentState = GameState.GameOver;
-            }
-            else
-            {
-                player = new Rectangle(100, 300, 40, 40);
-                playerSpeedX = 0;
-                playerSpeedY = 0;
-                isJumping = false;
-                onGround = false;
-            }
-        }
-
-        private void Form1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (currentState == GameState.StartScreen)
-            {
-                if (e.KeyCode == Keys.D1) StartLevel(1);
-                if (e.KeyCode == Keys.D2) StartLevel(2);
-                return;
+                spieler.X = 100;
+                spieler.Y = 300;
+                geschwindigkeitY = 0;
+                springtGerade = false;
+                kameraPosition = 0;
             }
 
-            if (currentState == GameState.GameOver)
+            // Check if player reached goal
+            if (spieler.IntersectsWith(ziel))
             {
-                if (e.KeyCode == Keys.Enter)
-                    SetupStartScreen();
-                return;
+                spielUhr.Stop();
+                MessageBox.Show("🎉 Geschafft! Du hast die Sonne erreicht!", "Gewonnen");
+                this.Close();
             }
 
-            if (e.KeyCode == Keys.Left) playerSpeedX = -5;
-            if (e.KeyCode == Keys.Right) playerSpeedX = 5;
-            if (e.KeyCode == Keys.Space && onGround && !isJumping)
-            {
-                playerSpeedY = jumpStrength;
-                isJumping = true;
-            }
-        }
-
-        private void Form1_KeyUp(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
-                playerSpeedX = 0;
+            // Redraw game
+            this.Invalidate();
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            base.OnPaint(e);
             Graphics g = e.Graphics;
-            g.Clear(Color.SkyBlue);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            if (currentState == GameState.StartScreen)
+            // Apply camera offset
+            g.TranslateTransform(-kameraPosition, 0);
+
+            // Draw sky background
+            using (var himmelPinsel = new LinearGradientBrush(
+                new Point(0, 0),
+                new Point(0, this.ClientSize.Height),
+                Color.LightSkyBlue,
+                Color.DeepSkyBlue))
             {
-                string title = "Survival Jumper";
-                string instructions = "Drücke 1 oder 2 um ein Level zu starten";
-
-                var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString(title, new Font("Arial", 32, FontStyle.Bold), Brushes.DarkRed, ClientRectangle, sf);
-
-                Rectangle instructionArea = new Rectangle(0, ClientSize.Height / 2 + 50, ClientSize.Width, 100);
-                g.DrawString(instructions, new Font("Arial", 20), Brushes.Black, instructionArea, sf);
-                return;
+                g.FillRectangle(himmelPinsel, 0, 0, levelBreite, this.ClientSize.Height);
             }
 
-            // Lava
-            g.FillRectangle(Brushes.OrangeRed, lavaZone);
-
-            // Plattformen
-            foreach (var plat in platforms)
-                g.FillRectangle(Brushes.SaddleBrown, plat);
-
-            // Bewegliche Plattformen
-            foreach (var mplat in movingPlatforms)
-                g.FillRectangle(Brushes.Peru, mplat.Bounds);
-
-            // Lava-Kugeln
-            foreach (var ball in lavaBalls)
-                g.FillEllipse(Brushes.DarkRed, ball.Bounds);
-
-            // Spieler
-            g.FillRectangle(Brushes.Red, player);
-
-            // UI
-            g.DrawString("Leben: " + lives, new Font("Arial", 16), Brushes.Black, 10, 10);
-
-            if (currentState == GameState.GameOver)
+            // Draw background clouds
+            foreach (var wolke in wolkenHintergrund)
             {
-                string msg = "GAME OVER\nDrücke ENTER zum Neustart";
-                var sf = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.FillRectangle(new SolidBrush(Color.FromArgb(180, Color.Black)), ClientRectangle);
-                g.DrawString(msg, new Font("Arial", 28, FontStyle.Bold), Brushes.White, ClientRectangle, sf);
-            }
-        }
-
-        // Bewegliche Plattform
-        public class MovingPlatform
-        {
-            public Rectangle Bounds;
-            private int speed = 2;
-            private bool vertical;
-            private int direction = 1;
-
-            public MovingPlatform(Rectangle bounds, int speed, bool vertical)
-            {
-                this.Bounds = bounds;
-                this.speed = speed;
-                this.vertical = vertical;
+                g.FillEllipse(Brushes.WhiteSmoke, wolke);
             }
 
-            public void Update()
+            // Draw platforms
+            foreach (var plattform in plattformen)
             {
-                if (vertical)
-                {
-                    Bounds.Y += speed * direction;
-                    if (Bounds.Y < 100 || Bounds.Y > 400)
-                        direction *= -1;
-                }
-                else
-                {
-                    Bounds.X += speed * direction;
-                    if (Bounds.X < 100 || Bounds.X > 600)
-                        direction *= -1;
-                }
+                g.FillEllipse(Brushes.WhiteSmoke, plattform);
+            }
+
+            // Draw goal (sun)
+            g.FillEllipse(Brushes.Gold, ziel);
+            g.DrawString("Ziel", this.Font, Brushes.Black,
+                ziel.X + ziel.Width / 2 - 15,
+                ziel.Y + ziel.Height / 2 - 8);
+
+            // Draw player
+            g.FillEllipse(Brushes.Red, spieler);
+
+            // Reset transform
+            g.ResetTransform();
+
+            // Draw UI
+            using (var schrift = new Font("Arial", 14, FontStyle.Bold))
+            {
+                g.DrawString("Springe zur Sonne! (Pfeiltasten)", schrift, Brushes.White, 20, 20);
             }
         }
 
-        // Lava-Kugel
-        public class LavaBall
+        private void HauptFenster_KeyDown(object sender, KeyEventArgs e)
         {
-            public Rectangle Bounds;
-            private int speed = -10;
-            private int resetDelay = 100;
-            private int delayCounter = 0;
-            private Random rand = new Random();
-
-            public LavaBall(Point start)
+            switch (e.KeyCode)
             {
-                this.Bounds = new Rectangle(start.X, start.Y, 20, 20);
-            }
+                case Keys.Left:
+                    gehtLinks = true;
+                    break;
 
-            public void Update()
+                case Keys.Right:
+                    gehtRechts = true;
+                    break;
+
+                case Keys.Up:
+                case Keys.Space:
+                    if (!springtGerade)
+                    {
+                        geschwindigkeitY = SprungKraft;
+                        springtGerade = true;
+                    }
+                    break;
+
+                case Keys.Escape:
+                    this.Close();
+                    break;
+            }
+        }
+
+        private void HauptFenster_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
             {
-                if (delayCounter > 0)
-                {
-                    delayCounter--;
-                    return;
-                }
+                case Keys.Left:
+                    gehtLinks = false;
+                    break;
 
-                Bounds.Y += speed;
-                if (Bounds.Y < 0)
-                {
-                    Bounds.Y = 580;
-                    Bounds.X = rand.Next(0, 760);
-                    delayCounter = rand.Next(30, 100);
-                }
+                case Keys.Right:
+                    gehtRechts = false;
+                    break;
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                components?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        [STAThread]
+        public static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new HauptFenster());
         }
     }
 }
