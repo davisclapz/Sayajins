@@ -9,7 +9,7 @@ namespace Himmels_Spring_Spiel
 {
     public class HauptFenster : Form
     {
-        // Game components and variables
+        // Spielfiguren und Steuerung
         private readonly Timer spielUhr;
         private Rectangle spieler;
         private int geschwindigkeitY;
@@ -17,34 +17,30 @@ namespace Himmels_Spring_Spiel
         private bool gehtLinks;
         private bool gehtRechts;
 
-        // Level elements
+        // Level und Elemente
         private readonly List<Rectangle> plattformen;
-        private readonly List<Rectangle> wolkenHintergrund;
+        private readonly List<Point> wolkenPositionen;
         private readonly Rectangle ziel;
         private readonly int levelBreite = 2000;
         private int kameraPosition;
 
-        // Game constants
+        // Konstanten
         private const int Schwerkraft = 1;
         private const int SprungKraft = -18;
         private const int LaufGeschwindigkeit = 7;
         private const int BodenHoehe = 550;
+        private int leben = 3;
 
-        // Form components
+        // Form-Komponenten
         private IContainer components = null;
 
         public HauptFenster()
         {
-            // Initialize components container
             components = new Container();
-
-            // Initialize readonly fields
             spielUhr = new Timer(components);
             plattformen = new List<Rectangle>();
-            wolkenHintergrund = new List<Rectangle>();
+            wolkenPositionen = new List<Point>();
             ziel = new Rectangle(levelBreite - 100, 50, 60, 60);
-
-            // Initialize other fields
             spieler = new Rectangle(100, 300, 30, 50);
             geschwindigkeitY = 0;
             springtGerade = false;
@@ -52,7 +48,6 @@ namespace Himmels_Spring_Spiel
             gehtRechts = false;
             kameraPosition = 0;
 
-            // Initialize form properties
             InitializeComponent();
             InitializeGame();
         }
@@ -60,58 +55,43 @@ namespace Himmels_Spring_Spiel
         private void InitializeComponent()
         {
             this.SuspendLayout();
-
-            // Basic form settings
-            this.AutoScaleDimensions = new SizeF(6F, 13F);
-            this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(800, 600);
             this.Name = "HauptFenster";
             this.Text = "Himmels-Spring-Spiel";
-
-            // Custom form settings
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
             this.DoubleBuffered = true;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-
             this.ResumeLayout(false);
         }
 
         private void InitializeGame()
         {
-            // Set up game timer
-            spielUhr.Interval = 20; // 50 FPS
+            spielUhr.Interval = 20;
             spielUhr.Tick += SpielSchleife;
 
-            // Set up keyboard events
             this.KeyDown += HauptFenster_KeyDown;
             this.KeyUp += HauptFenster_KeyUp;
             this.KeyPreview = true;
 
-            // Build level
             BaueLevel();
-
-            // Start game
             spielUhr.Start();
         }
 
         private void BaueLevel()
         {
             plattformen.Clear();
-            wolkenHintergrund.Clear();
-
-            // Create background clouds
+            wolkenPositionen.Clear();
             Random zufall = new Random();
+
             for (int i = 0; i < 20; i++)
             {
-                wolkenHintergrund.Add(new Rectangle(
+                wolkenPositionen.Add(new Point(
                     zufall.Next(0, levelBreite),
-                    zufall.Next(50, 300),
-                    100, 40));
+                    zufall.Next(50, 300)));
             }
 
-            // Create platforms (jumpable clouds)
             plattformen.Add(new Rectangle(100, BodenHoehe, 120, 20)); // Start
             plattformen.Add(new Rectangle(300, 450, 120, 20));
             plattformen.Add(new Rectangle(500, 400, 120, 20));
@@ -125,22 +105,18 @@ namespace Himmels_Spring_Spiel
 
         private void SpielSchleife(object sender, EventArgs e)
         {
-            // Handle movement
             if (gehtLinks && spieler.X > 0) spieler.X -= LaufGeschwindigkeit;
             if (gehtRechts && spieler.X < levelBreite - spieler.Width) spieler.X += LaufGeschwindigkeit;
 
-            // Update camera
             if (spieler.X > this.ClientSize.Width / 2 &&
                 spieler.X < levelBreite - this.ClientSize.Width / 2)
             {
                 kameraPosition = spieler.X - this.ClientSize.Width / 2;
             }
 
-            // Apply gravity
             geschwindigkeitY += Schwerkraft;
             spieler.Y += geschwindigkeitY;
 
-            // Check platform collisions
             foreach (var plattform in plattformen)
             {
                 if (spieler.Bottom >= plattform.Top &&
@@ -156,9 +132,17 @@ namespace Himmels_Spring_Spiel
                 }
             }
 
-            // Check if player fell
             if (spieler.Y > this.ClientSize.Height)
             {
+                leben--;
+                if (leben <= 0)
+                {
+                    spielUhr.Stop();
+                    MessageBox.Show("💀 Game Over!", "Verloren");
+                    this.Close();
+                    return;
+                }
+
                 spieler.X = 100;
                 spieler.Y = 300;
                 geschwindigkeitY = 0;
@@ -166,7 +150,6 @@ namespace Himmels_Spring_Spiel
                 kameraPosition = 0;
             }
 
-            // Check if player reached goal
             if (spieler.IntersectsWith(ziel))
             {
                 spielUhr.Stop();
@@ -174,7 +157,6 @@ namespace Himmels_Spring_Spiel
                 this.Close();
             }
 
-            // Redraw game
             this.Invalidate();
         }
 
@@ -184,63 +166,83 @@ namespace Himmels_Spring_Spiel
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // 1. Himmelshintergrund VOR Kamera-Offset zeichnen
-            using (var himmelPinsel = new LinearGradientBrush(
+            using (var himmel = new LinearGradientBrush(
                 new Point(0, 0),
                 new Point(0, this.ClientSize.Height),
                 Color.LightSkyBlue,
                 Color.DeepSkyBlue))
             {
-                g.FillRectangle(himmelPinsel, 0, 0, this.ClientSize.Width, this.ClientSize.Height);
+                g.FillRectangle(himmel, 0, 0, this.ClientSize.Width, this.ClientSize.Height);
             }
 
-            // 2. Kamera-Verschiebung anwenden
             g.TranslateTransform(-kameraPosition, 0);
 
-            // 3. Wolken im Hintergrund
-            foreach (var wolke in wolkenHintergrund)
+            foreach (var pos in wolkenPositionen)
             {
-                g.FillEllipse(Brushes.WhiteSmoke, wolke);
+                ZeichneWolke(g, pos.X, pos.Y, 100, 40);
             }
 
-            // 4. Plattformen
             foreach (var plattform in plattformen)
             {
-                g.FillEllipse(Brushes.WhiteSmoke, plattform);
+                ZeichneWolke(g, plattform.X, plattform.Y, plattform.Width, plattform.Height);
             }
 
-            // 5. Ziel (Sonne)
-            g.FillEllipse(Brushes.Gold, ziel);
-            g.DrawString("Ziel", this.Font, Brushes.Black,
-                ziel.X + ziel.Width / 2 - 15,
-                ziel.Y + ziel.Height / 2 - 8);
-
-            // 6. Spieler
+            ZeichneSonne(g, ziel);
             g.FillEllipse(Brushes.Red, spieler);
 
-            // 7. Kamera-Transform zurücksetzen
             g.ResetTransform();
 
-            // 8. UI-Text (bleibt fix am Bildschirmrand)
             using (var schrift = new Font("Arial", 14, FontStyle.Bold))
             {
                 g.DrawString("Springe zur Sonne! (Pfeiltasten)", schrift, Brushes.White, 20, 20);
+                g.DrawString("Leben: " + new string('❤', Math.Max(0, Math.Min(leben, 10))), schrift, Brushes.White, 20, 40);
+
+            }
+
+        }
+
+        private void ZeichneWolke(Graphics g, int x, int y, int breite, int hoehe)
+        {
+            using (SolidBrush wolkenPinsel = new SolidBrush(Color.WhiteSmoke))
+            {
+                g.FillEllipse(wolkenPinsel, x + breite * 0.2f, y, breite * 0.6f, hoehe);
+                g.FillEllipse(wolkenPinsel, x, y + hoehe * 0.3f, breite, hoehe * 0.7f);
+                g.FillEllipse(wolkenPinsel, x + breite * 0.3f, y + hoehe * 0.2f, breite * 0.5f, hoehe);
             }
         }
 
+        private void ZeichneSonne(Graphics g, Rectangle bereich)
+        {
+            int centerX = bereich.X + bereich.Width / 2;
+            int centerY = bereich.Y + bereich.Height / 2;
+            int radius = bereich.Width / 2;
+
+            using (Pen strahl = new Pen(Color.Gold, 2))
+            {
+                for (int i = 0; i < 12; i++)
+                {
+                    double winkel = i * Math.PI / 6;
+                    int x1 = centerX + (int)(radius * 1.2 * Math.Cos(winkel));
+                    int y1 = centerY + (int)(radius * 1.2 * Math.Sin(winkel));
+                    int x2 = centerX + (int)(radius * 1.8 * Math.Cos(winkel));
+                    int y2 = centerY + (int)(radius * 1.8 * Math.Sin(winkel));
+                    g.DrawLine(strahl, x1, y1, x2, y2);
+                }
+            }
+
+            using (Brush sonneKern = new LinearGradientBrush(
+                bereich, Color.Yellow, Color.Orange, 45f))
+            {
+                g.FillEllipse(sonneKern, bereich);
+            }
+        }
 
         private void HauptFenster_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.KeyCode)
             {
-                case Keys.Left:
-                    gehtLinks = true;
-                    break;
-
-                case Keys.Right:
-                    gehtRechts = true;
-                    break;
-
+                case Keys.Left: gehtLinks = true; break;
+                case Keys.Right: gehtRechts = true; break;
                 case Keys.Up:
                 case Keys.Space:
                     if (!springtGerade)
@@ -249,36 +251,23 @@ namespace Himmels_Spring_Spiel
                         springtGerade = true;
                     }
                     break;
-
-                case Keys.Escape:
-                    this.Close();
-                    break;
+                case Keys.Escape: this.Close(); break;
             }
         }
 
         private void HauptFenster_KeyUp(object sender, KeyEventArgs e)
         {
-            switch (e.KeyCode)
-            {
-                case Keys.Left:
-                    gehtLinks = false;
-                    break;
-
-                case Keys.Right:
-                    gehtRechts = false;
-                    break;
-            }
+            if (e.KeyCode == Keys.Left) gehtLinks = false;
+            if (e.KeyCode == Keys.Right) gehtRechts = false;
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                components?.Dispose();
-            }
+            if (disposing) components?.Dispose();
             base.Dispose(disposing);
         }
 
-       
+
+
     }
 }

@@ -1,19 +1,31 @@
-﻿namespace Himmels_Spring_Spiel
+﻿namespace WindowsFormsApp1
 {
-    partial class GameForm
+    partial class Form1
     {
-        // Designer-generierter Code bleibt unverändert
+        /// <summary>
+        /// Erforderliche Designervariable.
+        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        //protected override void Dispose(bool disposing)
-        //{
-        //    if (disposing && (components != null))
-        //    {
-        //        components.Dispose();
-        //    }
-        //    base.Dispose(disposing);
-        //}
+        /// <summary>
+        /// Verwendete Ressourcen bereinigen.
+        /// </summary>
+        /// <param name="disposing">True, wenn verwaltete Ressourcen gelöscht werden sollen; andernfalls False.</param>
 
 
+        #region Vom Windows Form-Designer generierter Code
+
+        /// <summary>
+        /// Erforderliche Methode für die Designerunterstützung.
+        /// Der Inhalt der Methode darf nicht mit dem Code-Editor geändert werden.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            this.components = new System.ComponentModel.Container();
+
+        }
+
+        #endregion
     }
 }
+
