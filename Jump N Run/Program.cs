@@ -1,4 +1,4 @@
-﻿using Himmels_Spring_Spiel;
+﻿using SkyJumpGame;
 using System;
 using System.Windows.Forms;
 
@@ -14,7 +14,7 @@ namespace Jump_N_Run
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new HauptFenster());
+            Application.Run(new GameForm());
         }
     }
 }

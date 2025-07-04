@@ -1,4 +1,4 @@
-﻿namespace WindowsFormsApp1
+﻿namespace SkyJumpGame
 {
     partial class Form1
     {

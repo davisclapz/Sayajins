@@ -5,48 +5,43 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace Himmels_Spring_Spiel
+namespace SkyJumpGame
 {
-    public class HauptFenster : Form
+    public class GameForm : Form
     {
-        // Spielfiguren und Steuerung
-        private readonly Timer spielUhr;
-        private Rectangle spieler;
-        private int geschwindigkeitY;
-        private bool springtGerade;
-        private bool gehtLinks;
-        private bool gehtRechts;
+        // Spielfigur und Steuerung
+        private readonly Timer gameTimer;
+        private Rectangle player;
+        private int velocityY;
+        private bool isJumping;
+        private bool moveLeft;
+        private bool moveRight;
 
-        // Level und Elemente
-        private readonly List<Rectangle> plattformen;
-        private readonly List<Point> wolkenPositionen;
-        private readonly Rectangle ziel;
-        private readonly int levelBreite = 2000;
-        private int kameraPosition;
+        // Level-Elemente
+        private readonly List<Rectangle> platforms;
+        private readonly List<Point> cloudPositions; // Hintergrundwolken
+        private readonly Rectangle goal;
+        private readonly int levelWidth = 2000;
+        private int cameraX;
 
         // Konstanten
-        private const int Schwerkraft = 1;
-        private const int SprungKraft = -18;
-        private const int LaufGeschwindigkeit = 7;
-        private const int BodenHoehe = 550;
-        private int leben = 3;
+        private const int Gravity = 1;
+        private const int JumpStrength = -18;
+        private const int MoveSpeed = 7;
+        private const int GroundHeight = 550;
+        private int lives = 3;
 
-        // Form-Komponenten
         private IContainer components = null;
 
-        public HauptFenster()
+        public GameForm()
         {
             components = new Container();
-            spielUhr = new Timer(components);
-            plattformen = new List<Rectangle>();
-            wolkenPositionen = new List<Point>();
-            ziel = new Rectangle(levelBreite - 100, 50, 60, 60);
-            spieler = new Rectangle(100, 300, 30, 50);
-            geschwindigkeitY = 0;
-            springtGerade = false;
-            gehtLinks = false;
-            gehtRechts = false;
-            kameraPosition = 0;
+            gameTimer = new Timer(components);
+            platforms = new List<Rectangle>();
+            cloudPositions = new List<Point>();
+            goal = new Rectangle(levelWidth - 100, 50, 60, 60);
+            player = new Rectangle(100, 300, 30, 50);
+            velocityY = 0;
 
             InitializeComponent();
             InitializeGame();
@@ -56,8 +51,8 @@ namespace Himmels_Spring_Spiel
         {
             this.SuspendLayout();
             this.ClientSize = new Size(800, 600);
-            this.Name = "HauptFenster";
-            this.Text = "Himmels-Spring-Spiel";
+            this.Name = "GameForm";
+            this.Text = "Sky Jump";
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
             this.DoubleBuffered = true;
@@ -68,96 +63,107 @@ namespace Himmels_Spring_Spiel
 
         private void InitializeGame()
         {
-            spielUhr.Interval = 20;
-            spielUhr.Tick += SpielSchleife;
+            gameTimer.Interval = 20;
+            gameTimer.Tick += GameLoop;
 
-            this.KeyDown += HauptFenster_KeyDown;
-            this.KeyUp += HauptFenster_KeyUp;
+            this.KeyDown += MainForm_KeyDown;
+            this.KeyUp += MainForm_KeyUp;
             this.KeyPreview = true;
 
-            BaueLevel();
-            spielUhr.Start();
+            BuildLevel();
+            gameTimer.Start();
         }
 
-        private void BaueLevel()
+        private void BuildLevel()
         {
-            plattformen.Clear();
-            wolkenPositionen.Clear();
-            Random zufall = new Random();
+            platforms.Clear();
+            cloudPositions.Clear();
+            Random random = new Random();
 
+            // Hintergrundwolken zufällig platzieren
             for (int i = 0; i < 20; i++)
             {
-                wolkenPositionen.Add(new Point(
-                    zufall.Next(0, levelBreite),
-                    zufall.Next(50, 300)));
+                cloudPositions.Add(new Point(
+                    random.Next(0, levelWidth),
+                    random.Next(50, 300)));
             }
 
-            plattformen.Add(new Rectangle(100, BodenHoehe, 120, 20)); // Start
-            plattformen.Add(new Rectangle(300, 450, 120, 20));
-            plattformen.Add(new Rectangle(500, 400, 120, 20));
-            plattformen.Add(new Rectangle(700, 350, 120, 20));
-            plattformen.Add(new Rectangle(900, 300, 120, 20));
-            plattformen.Add(new Rectangle(1100, 250, 120, 20));
-            plattformen.Add(new Rectangle(1300, 200, 120, 20));
-            plattformen.Add(new Rectangle(1500, 150, 120, 20));
-            plattformen.Add(new Rectangle(1700, 100, 120, 20));
+            // Plattformen 
+            platforms.Add(new Rectangle(100, GroundHeight, 120, 20)); // Startplattform
+            platforms.Add(new Rectangle(300, 450, 120, 20));
+            platforms.Add(new Rectangle(500, 400, 120, 20));
+            platforms.Add(new Rectangle(700, 350, 120, 20));
+            platforms.Add(new Rectangle(900, 300, 120, 20));
+            platforms.Add(new Rectangle(1100, 250, 120, 20));
+            platforms.Add(new Rectangle(1300, 200, 120, 20));
+            platforms.Add(new Rectangle(1500, 150, 120, 20));
+            platforms.Add(new Rectangle(1700, 100, 120, 20));
         }
 
-        private void SpielSchleife(object sender, EventArgs e)
+        private void GameLoop(object sender, EventArgs e)
         {
-            if (gehtLinks && spieler.X > 0) spieler.X -= LaufGeschwindigkeit;
-            if (gehtRechts && spieler.X < levelBreite - spieler.Width) spieler.X += LaufGeschwindigkeit;
+            // Bewegung links/rechts
+            if (moveLeft && player.X > 0)
+                player.X -= MoveSpeed;
+            if (moveRight && player.X < levelWidth - player.Width)
+                player.X += MoveSpeed;
 
-            if (spieler.X > this.ClientSize.Width / 2 &&
-                spieler.X < levelBreite - this.ClientSize.Width / 2)
+            // Kamera folgt Spieler
+            if (player.X > this.ClientSize.Width / 2 &&
+                player.X < levelWidth - this.ClientSize.Width / 2)
             {
-                kameraPosition = spieler.X - this.ClientSize.Width / 2;
+                cameraX = player.X - this.ClientSize.Width / 2;
             }
 
-            geschwindigkeitY += Schwerkraft;
-            spieler.Y += geschwindigkeitY;
+            // Schwerkraft anwenden
+            velocityY += Gravity;
+            player.Y += velocityY;
 
-            foreach (var plattform in plattformen)
+            // Plattform-Kollision prüfen
+            foreach (var platform in platforms)
             {
-                if (spieler.Bottom >= plattform.Top &&
-                    spieler.Bottom <= plattform.Top + 15 &&
-                    spieler.Right > plattform.Left + 10 &&
-                    spieler.Left < plattform.Right - 10 &&
-                    geschwindigkeitY >= 0)
+                if (player.Bottom >= platform.Top &&
+                    player.Bottom <= platform.Top + 15 &&
+                    player.Right > platform.Left + 10 &&
+                    player.Left < platform.Right - 10 &&
+                    velocityY >= 0)
                 {
-                    spieler.Y = plattform.Top - spieler.Height;
-                    geschwindigkeitY = 0;
-                    springtGerade = false;
+                    player.Y = platform.Top - player.Height;
+                    velocityY = 0;
+                    isJumping = false;
                     break;
                 }
             }
 
-            if (spieler.Y > this.ClientSize.Height)
+            // Spieler fällt aus dem Level
+            if (player.Y > this.ClientSize.Height)
             {
-                leben--;
-                if (leben <= 0)
+                lives--;
+                if (lives <= 0)
                 {
-                    spielUhr.Stop();
-                    MessageBox.Show("💀 Game Over!", "Verloren");
+                    gameTimer.Stop();
+                    MessageBox.Show("💀 Game Over!", "Wohin du Vogel");
                     this.Close();
                     return;
                 }
 
-                spieler.X = 100;
-                spieler.Y = 300;
-                geschwindigkeitY = 0;
-                springtGerade = false;
-                kameraPosition = 0;
+                // Respawn
+                player.X = 100;
+                player.Y = 300;
+                velocityY = 0;
+                isJumping = false;
+                cameraX = 0;
             }
 
-            if (spieler.IntersectsWith(ziel))
+            // Ziel erreicht
+            if (player.IntersectsWith(goal))
             {
-                spielUhr.Stop();
-                MessageBox.Show("🎉 Geschafft! Du hast die Sonne erreicht!", "Gewonnen");
+                gameTimer.Stop();
+                MessageBox.Show("🎉 Bis zur Sonne!", "Victory Royale");
                 this.Close();
             }
 
-            this.Invalidate();
+            this.Invalidate(); // Bildschirm neu zeichnen
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -166,99 +172,109 @@ namespace Himmels_Spring_Spiel
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using (var himmel = new LinearGradientBrush(
+            // Himmel-Hintergrund
+            using (var sky = new LinearGradientBrush(
                 new Point(0, 0),
                 new Point(0, this.ClientSize.Height),
                 Color.LightSkyBlue,
                 Color.DeepSkyBlue))
             {
-                g.FillRectangle(himmel, 0, 0, this.ClientSize.Width, this.ClientSize.Height);
+                g.FillRectangle(sky, 0, 0, this.ClientSize.Width, this.ClientSize.Height);
             }
 
-            g.TranslateTransform(-kameraPosition, 0);
+            // Kamera-Verschiebung
+            g.TranslateTransform(-cameraX, 0);
 
-            foreach (var pos in wolkenPositionen)
+            // Hintergrundwolken
+            foreach (var pos in cloudPositions)
             {
-                ZeichneWolke(g, pos.X, pos.Y, 100, 40);
+                DrawCloud(g, pos.X, pos.Y, 120, 50);
             }
 
-            foreach (var plattform in plattformen)
+            // Plattformen – gleiche Wolkenform wie Hintergrund
+            foreach (var platform in platforms)
             {
-                ZeichneWolke(g, plattform.X, plattform.Y, plattform.Width, plattform.Height);
+                DrawCloud(g, platform.X, platform.Y, platform.Width, platform.Height);
             }
 
-            ZeichneSonne(g, ziel);
-            g.FillEllipse(Brushes.Red, spieler);
+            // Ziel (Sonne) zeichnen
+            DrawSun(g, goal);
+
+            // Spieler
+            g.FillEllipse(Brushes.Red, player);
 
             g.ResetTransform();
 
-            using (var schrift = new Font("Arial", 14, FontStyle.Bold))
+            // HUD: Leben und Anleitung
+            using (var font = new Font("Arial", 14, FontStyle.Bold))
             {
-                g.DrawString("Springe zur Sonne! (Pfeiltasten)", schrift, Brushes.White, 20, 20);
-                g.DrawString("Leben: " + new string('❤', Math.Max(0, Math.Min(leben, 10))), schrift, Brushes.White, 20, 40);
-
-            }
-
-        }
-
-        private void ZeichneWolke(Graphics g, int x, int y, int breite, int hoehe)
-        {
-            using (SolidBrush wolkenPinsel = new SolidBrush(Color.WhiteSmoke))
-            {
-                g.FillEllipse(wolkenPinsel, x + breite * 0.2f, y, breite * 0.6f, hoehe);
-                g.FillEllipse(wolkenPinsel, x, y + hoehe * 0.3f, breite, hoehe * 0.7f);
-                g.FillEllipse(wolkenPinsel, x + breite * 0.3f, y + hoehe * 0.2f, breite * 0.5f, hoehe);
+                g.DrawString("Erreiche die Sonne! (Pfeil tasten)", font, Brushes.White, 20, 20);
+                g.DrawString("Leben: " + new string('❤', Math.Max(0, Math.Min(lives, 10))), font, Brushes.White, 20, 40);
             }
         }
 
-        private void ZeichneSonne(Graphics g, Rectangle bereich)
+        // Einheitliche Wolkenzeichnung – für Plattform & Hintergrund
+        private void DrawCloud(Graphics g, int x, int y, int width, int height)
         {
-            int centerX = bereich.X + bereich.Width / 2;
-            int centerY = bereich.Y + bereich.Height / 2;
-            int radius = bereich.Width / 2;
+            using (SolidBrush cloudBrush = new SolidBrush(Color.WhiteSmoke))
+            {
+                g.FillEllipse(cloudBrush, x + width * 0.1f, y + height * 0.3f, width * 0.6f, height * 0.5f);
+                g.FillEllipse(cloudBrush, x, y + height * 0.4f, width * 0.8f, height * 0.6f);
+                g.FillEllipse(cloudBrush, x + width * 0.3f, y + height * 0.1f, width * 0.5f, height * 0.6f);
+            }
+        }
 
-            using (Pen strahl = new Pen(Color.Gold, 2))
+        // Sonne zeichnen (Ziel)
+        private void DrawSun(Graphics g, Rectangle area)
+        {
+            int centerX = area.X + area.Width / 2;
+            int centerY = area.Y + area.Height / 2;
+            int radius = area.Width / 2;
+
+            using (Pen rayPen = new Pen(Color.Gold, 2))
             {
                 for (int i = 0; i < 12; i++)
                 {
-                    double winkel = i * Math.PI / 6;
-                    int x1 = centerX + (int)(radius * 1.2 * Math.Cos(winkel));
-                    int y1 = centerY + (int)(radius * 1.2 * Math.Sin(winkel));
-                    int x2 = centerX + (int)(radius * 1.8 * Math.Cos(winkel));
-                    int y2 = centerY + (int)(radius * 1.8 * Math.Sin(winkel));
-                    g.DrawLine(strahl, x1, y1, x2, y2);
+                    double angle = i * Math.PI / 6;
+                    int x1 = centerX + (int)(radius * 1.2 * Math.Cos(angle));
+                    int y1 = centerY + (int)(radius * 1.2 * Math.Sin(angle));
+                    int x2 = centerX + (int)(radius * 1.8 * Math.Cos(angle));
+                    int y2 = centerY + (int)(radius * 1.8 * Math.Sin(angle));
+                    g.DrawLine(rayPen, x1, y1, x2, y2);
                 }
             }
 
-            using (Brush sonneKern = new LinearGradientBrush(
-                bereich, Color.Yellow, Color.Orange, 45f))
+            using (Brush sunBrush = new LinearGradientBrush(
+                area, Color.Yellow, Color.Orange, 45f))
             {
-                g.FillEllipse(sonneKern, bereich);
+                g.FillEllipse(sunBrush, area);
             }
         }
 
-        private void HauptFenster_KeyDown(object sender, KeyEventArgs e)
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.KeyCode)
             {
-                case Keys.Left: gehtLinks = true; break;
-                case Keys.Right: gehtRechts = true; break;
+                case Keys.Left: moveLeft = true; break;
+                case Keys.Right: moveRight = true; break;
                 case Keys.Up:
                 case Keys.Space:
-                    if (!springtGerade)
+                    if (!isJumping)
                     {
-                        geschwindigkeitY = SprungKraft;
-                        springtGerade = true;
+                        velocityY = JumpStrength;
+                        isJumping = true;
                     }
                     break;
-                case Keys.Escape: this.Close(); break;
+                case Keys.Escape:
+                    this.Close();
+                    break;
             }
         }
 
-        private void HauptFenster_KeyUp(object sender, KeyEventArgs e)
+        private void MainForm_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Left) gehtLinks = false;
-            if (e.KeyCode == Keys.Right) gehtRechts = false;
+            if (e.KeyCode == Keys.Left) moveLeft = false;
+            if (e.KeyCode == Keys.Right) moveRight = false;
         }
 
         protected override void Dispose(bool disposing)
@@ -266,8 +282,5 @@ namespace Himmels_Spring_Spiel
             if (disposing) components?.Dispose();
             base.Dispose(disposing);
         }
-
-
-
     }
 }
